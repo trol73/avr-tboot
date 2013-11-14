@@ -1,0 +1,29 @@
+t-boot v 1.0
+
+Serial protocol:
+Each command is one character, possibly followed by data. Data is sent in hexadecimal, in lowercase. Whitespace or other characters in hex strings sent to SSBL are not allowed and will cause an error.
+The bootloader responds to unrecognized characters with a question mark. When waiting for a command, the bootloader sends a CR (ascii 0x0D). The exception to this is the 'p' command, which does not send a CR when it finishes.
+
+'Z' (0x5A) 
+	Followed by four hex digits, loads the Z-register with the specified value.
+'R' (0x52) 
+	Followed by two hex digits, which are interpreted as a byte count. 
+	Reads program memory starting at the location pointed to by the Z register, and returns contents in hexadecimal. 
+	The Z register is advanced by the amount read (a value of 00 will cause 256 bytes to be read).
+'W' (0x57) 
+	Writes to program memory. 
+	The command character is followed by a word count (not a byte count as in 'R'). 
+	That many words are read, and stored into program memory at the location pointed to by the Z register. 
+	The Z register is advanced accordingly. This command does not perform a full program sequence. 
+	The programmer will need to use the 'P' command to complete the programming operation, and will need to be aware 
+	of the page structure of the target chip.	
+'P' (0x50) 
+	Reads one word into R0:R1, then one byte into SPMCR, then executes an SPM instruction.
+'Q' (0x51) 
+	Sends some state information back to the host.
+	The bootloader returns 4 bytes - the Z register value and offset of bootloader in flashmemory.
+'@' (0x40) 
+	Performs an ICALL, transferring control to the address in the Z register. 
+	This is useful for jumping to address 0 to start a loaded program, but could also be used to call 
+	a utility routine.
+
