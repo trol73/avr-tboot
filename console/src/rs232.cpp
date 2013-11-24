@@ -32,7 +32,7 @@ RS232::RS232() {
 	readTimeout = 0;
 #else
 	readTimeout = 1000*1000;
-#endif	
+#endif
 }
 
 
@@ -76,7 +76,7 @@ uint RS232::Write(void *buf, uint size) {
 #endif
 }
 
-void RS232::flush() {
+void RS232::Flush() {
 #ifdef WIN32
 #else
 	fsync(handle);
@@ -113,7 +113,7 @@ bool RS232::Open(const char *name, uint baudRate, bool parity, unsigned char sto
 	if ( handle == INVALID_HANDLE_VALUE )
 		return false;
 
-	// com-port initialization
+	// com-port initialisation
 	DCB dcb;
 	dcb.DCBlength = sizeof(DCB);
 	if( !GetCommState(handle, &dcb) ) {
@@ -123,11 +123,11 @@ bool RS232::Open(const char *name, uint baudRate, bool parity, unsigned char sto
 
 	dcb.BaudRate = baudRate;					// baudrate (in bauds)
 	dcb.fBinary = true;							// binary mode
-	dcb.fOutxCtsFlow = false;					// disable the CTS sygnal listening
-	dcb.fOutxDsrFlow = false;					// disable the DSR sygnal listening
+	dcb.fOutxCtsFlow = false;					// disable the CTS signal listening
+	dcb.fOutxDsrFlow = false;					// disable the DSR signal listening
 	dcb.fDtrControl = DTR_CONTROL_DISABLE;	// disable the DTR-line
 	dcb.fDsrSensitivity = false;				// ignore state of the DSR-line
-	dcb.fNull = false;							// allow zerro-bytes input
+	dcb.fNull = false;							// allow zero-bytes input
 	dcb.fRtsControl = RTS_CONTROL_DISABLE;	// not use the RTS-line
 	dcb.fAbortOnError = false;					// disable abort on error
 	dcb.ByteSize = 8;								// 8 bits per byte
@@ -166,15 +166,15 @@ bool RS232::Open(const char *name, uint baudRate, bool parity, unsigned char sto
 #else
 	int baudr = getBaudrateValue(baudRate);
 	if ( baudr == 0 ) {
-		perror("invalid comport baudrate\n");
+		perror("invalid serial port baudrate\n");
 		return false;
 	}
 	handle = open(name, O_RDWR | O_NOCTTY | O_NDELAY);// | O_RSYNC | O_SYNC | O_DSYNC);
 	if( handle == -1 ) {
-		perror("unable to open comport");
+		perror("unable to open serial port");
 		return false;
 	}
-	
+
 	int error = tcgetattr(handle, &old_port_settings);
 	if ( error == -1 ) {
 		close(handle);

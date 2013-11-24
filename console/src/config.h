@@ -42,9 +42,9 @@ public:
 	// device settings
 	std::string device_id;			// device name
 	std::string device_desc;		// device description
-	uint device_rom_size;	// size of ROM
-	uint device_page_size;	// size of ROM page
-	uint device_eeprom_size;// size of EEPROM
+	uint device_rom_size;			// size of ROM
+	uint device_page_size;			// size of ROM page
+	uint device_eeprom_size;		// size of EEPROM
 
 	struct TOperation {
 		char type;		// operation type: r|w|v

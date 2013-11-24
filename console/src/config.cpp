@@ -144,7 +144,7 @@ bool Config::Load() {
 }
 
 bool Config::SelectDevice(const std::string &id) {
-	for ( size_t i = 0; i < devices.size(); i++ ) 
+	for ( size_t i = 0; i < devices.size(); i++ )
 		if ( devices[i]->id == id ) {
 			device_id = devices[i]->id;
 			device_desc = devices[i]->desc;
@@ -214,7 +214,7 @@ bool Config::ParseCommandLine(int argc, char *argv[]) {
 			std::string memType = ExtractWord(1, argValue, ":");
 			std::string operationType = ExtractWord(2, argValue, ":");
 			std::string file = ExtractWord(3, argValue, ":");
-			
+
 			TOperation *operation = new TOperation();
 			if ( memType == "flash" )
 				operation->target = 'f';

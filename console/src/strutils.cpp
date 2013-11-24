@@ -25,7 +25,7 @@ string Trim(const string &str) {
 		return str;
 	size_t beg = str.find_first_not_of(" \a\b\f\n\r\t\v");
 	size_t end = str.find_last_not_of(" \a\b\f\n\r\t\v");
-	// if string containts spaces only
+	// if string contains spaces only
 	if ( beg == string::npos )
 		return "";
 	return string(str, beg, end+1-beg);
@@ -56,7 +56,7 @@ string StrLower(const string &str) {
 };
 
 
-// Convert a string to upperecase
+// Convert a string to uppercase
 string StrUpper(const string &str) {
 	std::string result;
 
@@ -77,7 +77,7 @@ int WordCount(const std::string &str, const std::string &wordDelims) {
 	while ( i < len ) {
 		while ( (i < len) && (wordDelims.find(str[i]) != string::npos) )
 			i++;
-		if (i < len) 
+		if (i < len)
 			res++;
 		while ( (i < len) && (wordDelims.find(str[i]) == string::npos) )
 			i++;
@@ -98,11 +98,11 @@ int WordPosition(const unsigned int n, const std::string &str, const std::string
 		// skiping delims in end of the string
 		while ( (i <= len) && (wordDelims.find(str[i]) != string::npos) )
 			i++;
-		// it's begining of a new word
-		if ( i < len ) 
+		// it's beginтing of a new word
+		if ( i < len )
 			count++;
 		// it's a end of current word
-		if ( count != n ) 
+		if ( count != n )
 			while ( (i < len) && (wordDelims.find(str[i]) == string::npos) )
 				i++;
 		else
@@ -129,14 +129,14 @@ std::string ExtractWord(const unsigned int n, const std::string &str, const std:
 
 
 
-// Return true, if the string is a valid representation of integer 
+// Return true, if the string is a valid representation of integer
 bool VerifyInt(const std::string &str) {
 	if ( str.length() == 0 ) {
 		return false;
 	}
 	char *stopstring;
 	strtol(str.c_str(), &stopstring, 10);
-	return ( stopstring[0] == 0 );  
+	return ( stopstring[0] == 0 );
 }
 
 
@@ -177,7 +177,7 @@ double StrToFloat(const std::string &str) {
 // Convert float to string
 // precision - number of characters after decimal dot
 std::string FloatToStr(double v, unsigned char precesion) {
-	char mask[10];	
+	char mask[10];
 	char result[64];
 #ifdef WIN32
 	sprintf_s(mask, "%%.%if", precesion);

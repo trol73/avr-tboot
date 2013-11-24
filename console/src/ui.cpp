@@ -97,10 +97,11 @@ void UI::Progress(const char* msg, int percent, float time) {
 
 // Prints the progress-bar for the reading operation
 void UI::ProgressRead(int percent, float time) {
-	if ( lastPercent == percent ) {
+	if ( lastPercent == percent && time - lastTime < 0.5) {
 		return;
 	}
 	lastPercent = percent;
+	lastTime = time;
 	Progress("Reading", percent, time);
 	fflush(stdout);
 }
@@ -108,10 +109,11 @@ void UI::ProgressRead(int percent, float time) {
 
 // Prints the progress-bar for the writing operation
 void UI::ProgressWrite(int percent, float time) {
-	if ( lastPercent == percent ) {
+	if ( lastPercent == percent && time - lastTime < 0.5 ) {
 		return;
 	}
 	lastPercent = percent;
+	lastTime = time;
 	Progress("Writing", percent, time);
 	fflush(stdout);
 }

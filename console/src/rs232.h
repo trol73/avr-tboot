@@ -42,7 +42,7 @@ public:
 
 	uint Write(void *buf, uint size);
 
-	void flush();
+	void Flush();
 
 	void Close();
 

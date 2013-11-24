@@ -28,6 +28,8 @@ public:
 	void __fastcall Reset();
 
 	TIME_T __fastcall GetTime();		// get time in microseconds
+	
+	float __fastcall GetTimeSec() { return GetTime()/1e6; }
 
 	bool __fastcall IsStarted() { return iStarted; }
 

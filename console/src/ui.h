@@ -15,8 +15,8 @@
 class Config;
 /*
  * TODO
- * 
- * 	XML config 
+ *
+ * 	XML config
  * 	configurable timeout
  * 	send string on start
  * 	send string on exit
@@ -25,6 +25,7 @@ class Config;
  * 	write progress-bar doesn't linear
  * 	pages to progress-bar
  * 	logging
+ *  creating avr-sources from tool
  *
  *
 avrdude: AVR device initialized and ready to accept instructions
@@ -58,7 +59,7 @@ avrdude: 32448 bytes of flash verified
 
  *
  *
- */ 
+ */
 class UI {
 public:
 	UI(Config *config);
@@ -87,6 +88,7 @@ private:
 	Config *cfg;
 
 	int lastPercent;
+	float lastTime;
 };
 
 #endif // _UI_H_

@@ -46,6 +46,7 @@ Device::Device(UI *ui) {
 	this->totalBytesOut = 0;
 	this->valueOfZ = -1;
 	this->bootloaderFlags = 0;
+	this->writeDelay = 0;
 }
 
 
@@ -71,6 +72,11 @@ bool Device::Open(const char *comName, int baudRate) {
 	return true;
 }
 
+
+void Device::Close() {
+    com->Flush();
+    com->Close();
+}
 
 // Set the Z-register
 bool Device::CommandZ(uint z) {
@@ -302,7 +308,7 @@ bool Device::WritePage(int offset, unsigned char *data, int size) {
 	}
 
 	// [???] may be it's a some delay? [???] !!!!!
-	if ( !GetLoaderOffset() ) {
+	if ( GetLoaderOffset() <= 0 ) {
 		LOG(ERROR) << "WRITE PAGE - GET LOADER OFFSET ERROR";
 		return false;
 	}
@@ -319,7 +325,7 @@ bool Device::WritePage(int offset, unsigned char *data, int size) {
 	}
 
 	// [???] may be it's a some delay? [???] !!!
-	if ( !GetLoaderOffset() ) {
+	if ( GetLoaderOffset() <= 0 ) {
 		LOG(ERROR) << "WRITE PAGE - GET LOADER OFFSET-2 ERROR";
 		return false;
 	}
@@ -338,7 +344,7 @@ bool Device::WritePage(int offset, unsigned char *data, int size) {
 	}
 
 	// [???] may be it's a some delay? [???]
-	if ( !GetLoaderOffset() ) {
+	if ( GetLoaderOffset() <= 0 ) {
 		LOG(ERROR) << "WRITE PAGE - get loader offset error";
 		return false;
 	}
@@ -353,7 +359,7 @@ int Device::GetLoaderOffset() {
 
 	if ( !writeByte('Q') ) {
 		LOG(ERROR) << "write byte error - Q";
-		return false;
+		return -1;
 	}
 	int z = getHexWord();
 	if ( valueOfZ >= 0 && z != valueOfZ ) {
@@ -366,15 +372,15 @@ int Device::GetLoaderOffset() {
 	uint resp = readByte();
 	if ( resp != 0x0D ) {
 		LOG(ERROR) << "GET LOADER OFFSET - invalid response " << CharToStrForLog(resp);
-		return false;
+		return -1;
 	}
 	if ( result < 0 ) {
 		LOG(ERROR) << "COMMAND Q - invalid offset";
-		return false;
+		return -1;
 	}
 	if ( flags < 0 ) {
 		LOG(ERROR) << "COMMAND Q - invalid flags";
-		return false;
+		return -1;
 	} else {
 		bootloaderFlags = flags;
 	}
@@ -433,7 +439,7 @@ bool Device::WriteAll(int *data, int size, bool smart) {
 			}
 			writePage = true;
 		}
-		
+
 		if ( writePage ) {
 			pagesWrited++;
 			// prepare page data before writing
@@ -648,7 +654,7 @@ printf("!!! 4\n");
 	}
 	if ( !CommandZ(bootOffset) ) {
 printf("!!! 5\n");
-		return false;	
+		return false;
 	}
 
 	writeByte('Q');
@@ -716,6 +722,13 @@ printf("RB  ? = %i\n", com->IsOk());
 	if ( readByte() != 0x0D )
 		return false;
 */
+
+	int offset = GetLoaderOffset();
+	VLOG(VLOG_LOADER_DETAILS) << "bootloader offset: " << offset;
+	if ( offset <= 0 ) {
+		LOG(ERROR) << "can't get bootloader offset";
+		return false;
+	}
 	return true;
 }
 
@@ -730,26 +743,24 @@ bool Device::writeByte(unsigned char val) {
 #endif
 	}
 	com->WriteByte(val);
+	timerUartOut->Stop();
 
 	if ( !com->IsOk() ) {
 		LOG(ERROR) << "WRITE BYTE ERROR";
-		timerUartOut->Stop();
 		return false;
 	}
 	if ( fullEchoMode ) {
-		uint resp = com->ReadByte();
+		uint resp = readByte();
 		if ( !com->IsOk() ) {
 			LOG(ERROR) << "WRITY BYTE ECHO TIMEOUT";
-			timerUartOut->Stop();
 			return false;
 		}
 		if ( val != resp ) {
 			LOG(ERROR) << "WRITE BYTE ECHO ERROR - put " << CharToStrForLog(val) << " get " << CharToStrForLog(resp);
-			timerUartOut->Stop();
 			return false;
 		}
 	}
-	timerUartOut->Stop();
+
 	totalBytesOut++;
 	return true;
 }

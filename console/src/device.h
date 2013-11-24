@@ -28,6 +28,9 @@ public:
 
 	// Connect to the bootloader
 	bool Open(const char *comName, int baudRate);
+	
+	// Close serial port and disconnect
+	void Close();
 
 	// Reads a memory block with size <= 0xff
 	bool ReadBlock(int offset, unsigned char *data, int size);

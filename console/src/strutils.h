@@ -25,7 +25,7 @@ std::string ExtractFileExt(const std::string str);
 // Convert a string to lowercase
 std::string StrLower(const std::string &str);
 
-// Convert a string to upperecase
+// Convert a string to uppercase
 std::string StrUpper(const std::string &str);
 
 // Return words count in the string for specified delims symbols
@@ -39,7 +39,7 @@ std::string ExtractWord(const unsigned int n, const std::string &str, const std:
 
 
 
-// Return true, if the string is a valid representation of integer 
+// Return true, if the string is a valid representation of integer
 bool VerifyInt(const std::string &str);
 
 // Convert the string to integer

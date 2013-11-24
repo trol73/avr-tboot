@@ -29,7 +29,7 @@ void usage() {
 		"Usage: tboot [options]\n"
 		"Options:\n"
 		"   -p <partno>                Specify AVR device.\n"
-		"   -b <baudrate>              Specify RS-232 baud rate.\n"
+		"   -b <baudrate>              Specify serial port baud rate.\n"
 		"   -C <config-file>           Specify location of configuration file.\n"
 		"   -P <port>                  Specify connection port.\n"
 		"   -U <flash|eeprom>:r|w|v:<filename.ext>\n"
@@ -73,8 +73,13 @@ int main(int argc, char* argv[]) {
 	dev->SetStartCommand(cfg->startCommand);
 
 	google::InitGoogleLogging(argv[0]);
-	FLAGS_log_dir = "./logs";
+	FLAGS_log_dir = "logs";
+
+	// Show all VLOG(m) messages for m less or equal the value of this flag.
 	FLAGS_v = cfg->loggingLevel;
+
+	// Copy log messages at or above this level to stderr in addition to logfiles.
+	// The numbers of severity levels INFO, WARNING, ERROR, and FATAL are 0, 1, 2, and 3, respectively.
 	FLAGS_stderrthreshold = 10;
 
 	if ( !dev->Open(cfg->port.c_str(), cfg->baudrate) ) {
@@ -92,7 +97,7 @@ int main(int argc, char* argv[]) {
 			return 4;
 		}
 	}
-	
+
 	dev->SetPageSize(cfg->device_page_size);
 	if ( cfg->no_write ) {
 		ui->Warning("writing is disabled");
@@ -132,7 +137,7 @@ int main(int argc, char* argv[]) {
 			// writing
 			case 'w': {
 				DataFile dataFile;
-				
+
 				ui->Info("reading input file \"%s\"\n", op->filename.c_str());
 
 				if ( !dataFile.Load(op->filename) )  {
@@ -158,7 +163,7 @@ int main(int argc, char* argv[]) {
 					delete[] data;
 					if ( !writeResult ) {
 						printf("\n");
-						ui->Error("chip flash writing error");
+						ui->Error("chip flash write error");
 						return 4;
 					}
 					if ( cfg->smart ) {
@@ -168,18 +173,18 @@ int main(int argc, char* argv[]) {
 					ui->Error("EEPROM doesn't supported for this version");
 					return 10;
 				}
-			 }
+			}
 			ui->Info("UART read: bytes = %i  time = %f sec \t rate = %f bps", dev->GetTotalBytesIn(), dev->GetTotalReadTime()/1e6, 1.0*dev->GetTotalBytesIn()/dev->GetTotalReadTime()*1e6);
 			ui->Info("UART write: bytes = %i  time = %f sec \t rate = %f bps", dev->GetTotalBytesOut(), dev->GetTotalWriteTime()/1e6, 1.0*dev->GetTotalBytesOut()/dev->GetTotalWriteTime()*1e6);
 
-				if ( !cfg->verify ) {
-					break;
-				}
+			if ( !cfg->verify ) {
+				break;
+			}
 
 			// verifying
 			case 'v': {
 				DataFile dataFile;
-				
+
 				if ( !dataFile.Load(op->filename) ) {
 					return 5;
 				}
@@ -210,7 +215,7 @@ int main(int argc, char* argv[]) {
 						ui->Error("verification error, address=%s chip=%s file=%s\n", HexToStr(i, 2).c_str(), HexToStr(readed[i], 1).c_str(),HexToStr(dataFile.data[i] , 1).c_str());
 						equals = false;
 					}
-				}				
+				}
 				ui->Message("%i bytes of %s verified\n", dataFile.definedBytes, op->target == 'f' ? "flash" : "eeprom");
 				delete[] readed;
 			}
@@ -218,7 +223,7 @@ int main(int argc, char* argv[]) {
 			ui->Info("UART read: bytes = %i  time = %f sec \t rate = %f bps", dev->GetTotalBytesIn(), dev->GetTotalReadTime()/1e6, 1.0*dev->GetTotalBytesIn()/dev->GetTotalReadTime()*1e6);
 			ui->Info("UART write: bytes = %i  time = %f sec \t rate = %f bps", dev->GetTotalBytesOut(), dev->GetTotalWriteTime()/1e6, 1.0*dev->GetTotalBytesOut()/dev->GetTotalWriteTime()*1e6);
 
-				break;
+			break;
 		} // switch (task)
 		ui->Info("");
 	} // for ( task )
@@ -228,8 +233,12 @@ int main(int argc, char* argv[]) {
 		LOG(ERROR) << "can't send finish command " << cfg->finishCommand;
 		return 100;
 	}
-
+	
+	
+	dev->GetLoaderOffset();
+	
+	dev->Close();
+	
 
 	return 0;
 }
-
