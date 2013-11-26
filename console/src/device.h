@@ -144,6 +144,8 @@ private:
 	// Returns the max size for reading block (0xffff if the fast-mode is enabled or 0xff otherwise)
 	uint getMaxReadBlockSize();
 
+	bool isConfirmMode();
+
 };
 
 #endif 

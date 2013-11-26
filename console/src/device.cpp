@@ -92,17 +92,20 @@ bool Device::CommandZ(uint z) {
 	}
 	sendHexWord(z);
 
-	unsigned char c = readByte();
-	if ( !com->IsOk() ) {
-		LOG(ERROR) << "COMMAND Z timeout";
-		valueOfZ = -1;
-		return false;
+	if ( isConfirmMode() ) {
+		unsigned char c = readByte();
+		if ( !com->IsOk() ) {
+			LOG(ERROR) << "COMMAND Z timeout";
+			valueOfZ = -1;
+			return false;
+		}
+		if ( c != 0x0D ) {
+			LOG(ERROR) << "COMMAND Z invalid response - " << ByteToHex(c) << ' ' << '[' << c << ']';
+			valueOfZ = -1;
+			return false;
+		}
 	}
-	if ( c != 0x0D ) {
-		LOG(ERROR) << "COMMAND Z invalid response - " << ByteToHex(c) << ' ' << '[' << c << ']';
-		valueOfZ = -1;
-		return false;
-	}
+
 	valueOfZ = z;
 	return true;
 }
@@ -140,10 +143,16 @@ bool Device::CommandR(unsigned char *data, int size, uint offset) {
 		}
 		ui->ProgressRead(100*(offset+i)/fullDataSize, timerRead->GetTime());
 	}
-	uint resp = readByte();
-	if ( resp != 0x0d ) {
-		LOG(ERROR) << "COMMAND R: invalid response " << CharToStrForLog(resp);
-		return false;
+	if ( isConfirmMode() ) {
+		uint resp = readByte();
+		if ( !com->IsOk() ) {
+			LOG(ERROR) << "COMMAND R timeout";
+			return false;
+		}
+		if ( resp != 0x0d ) {
+			LOG(ERROR) << "COMMAND R: invalid response " << CharToStrForLog(resp);
+			return false;
+		}
 	}
 	return true;
 }
@@ -181,10 +190,16 @@ bool Device::CommandW(unsigned char *data, int size) {
 		}
 	}
 
-	uint resp = readByte();
-	if ( resp != 0x0D ) {
-		LOG(ERROR) << "COMMAND W - invalid response " << CharToStrForLog(resp);
-		return false;
+	if ( isConfirmMode() ) {
+		uint resp = readByte();
+		if ( !com->IsOk() ) {
+			LOG(ERROR) << "COMMAND W timeout";
+			return false;
+		}
+		if ( resp != 0x0d ) {
+			LOG(ERROR) << "COMMAND W: invalid response " << CharToStrForLog(resp);
+			return false;
+		}
 	}
 
 	return true;
@@ -206,16 +221,24 @@ bool Device::CommandP(int r0r1, int spmcr) {
 		LOG(ERROR) << "COMMAND P: write SPMCR error";
 		return false;
 	}
-	uint resp = readByte();
-	if ( resp != 0x0D ) {
-		LOG(ERROR) << "COMMAND P: invalid response " << CharToStrForLog(resp);
-		return false;
+
+
+	if ( isConfirmMode() ) {
+		uint resp = readByte();
+		if ( !com->IsOk() ) {
+			LOG(ERROR) << "COMMAND P timeout";
+			return false;
+		}
+		if ( resp != 0x0d ) {
+			LOG(ERROR) << "COMMAND P: invalid response " << CharToStrForLog(resp);
+			return false;
+		}
 	}
 	return true;
 }
 
 
-// Reads a memory block with size <= 0xff
+// Reads a memory block with size <= 0x1000 / 0xff
 bool Device::ReadBlock(int offset, unsigned char *data, int size) {
 	VLOG(VLOG_LOADER_PAGES) << "read page #" << WordToHex(offset) << " size " << size;
 	if ( size > getMaxReadBlockSize() ) {
@@ -308,10 +331,10 @@ bool Device::WritePage(int offset, unsigned char *data, int size) {
 	}
 
 	// [???] may be it's a some delay? [???] !!!!!
-	if ( GetLoaderOffset() <= 0 ) {
-		LOG(ERROR) << "WRITE PAGE - GET LOADER OFFSET ERROR";
-		return false;
-	}
+//	if ( GetLoaderOffset() <= 0 ) {
+//		LOG(ERROR) << "WRITE PAGE - GET LOADER OFFSET ERROR";
+//		return false;
+//	}
 
 	// Send a data to the page buffer
 	if ( !CommandW(data, size) ) {
@@ -325,10 +348,10 @@ bool Device::WritePage(int offset, unsigned char *data, int size) {
 	}
 
 	// [???] may be it's a some delay? [???] !!!
-	if ( GetLoaderOffset() <= 0 ) {
-		LOG(ERROR) << "WRITE PAGE - GET LOADER OFFSET-2 ERROR";
-		return false;
-	}
+//	if ( GetLoaderOffset() <= 0 ) {
+//		LOG(ERROR) << "WRITE PAGE - GET LOADER OFFSET-2 ERROR";
+//		return false;
+//	}
 
 	if ( !noWrite ) {
 		// Write a page
@@ -344,10 +367,10 @@ bool Device::WritePage(int offset, unsigned char *data, int size) {
 	}
 
 	// [???] may be it's a some delay? [???]
-	if ( GetLoaderOffset() <= 0 ) {
-		LOG(ERROR) << "WRITE PAGE - get loader offset error";
-		return false;
-	}
+//	if ( GetLoaderOffset() <= 0 ) {
+//		LOG(ERROR) << "WRITE PAGE - get loader offset error";
+//		return false;
+//	}
 	VLOG(VLOG_LOADER_PAGES) << "write page completed";
 	return true;
 }
@@ -952,4 +975,9 @@ bool Device::SendCommandStr(std::string &cmd) {
 		}
 	}
 	return true;
+}
+
+
+bool Device::isConfirmMode() {
+	return (bootloaderFlags & FLAG_FAST_MODE_WRITE) == 0;
 }

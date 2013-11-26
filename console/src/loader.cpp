@@ -19,6 +19,7 @@
 #include "device.h"
 #include "config.h"
 #include "ui.h"
+#include "filestream.h"
 
 
 

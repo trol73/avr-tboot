@@ -119,7 +119,9 @@ reset_stack_and_putch:
 	rcall 	put_ch
 	
 put_ok_and_continue:
-	ldi 		r16, 13			; the symbol of t'he loader response, is sent after each executed command
+#if !FAST_MODE_WRITE
+	ldi 		r16, 13			; the symbol of the loader response, is sent after each executed command
+#endif
 
 	;; wait for completion before sending ack byte
 putch_and_continue:
@@ -127,11 +129,13 @@ putch_and_continue:
 	andi 		r17, (1<<SPMEN)
 	brne 		putch_and_continue		; jump if the result is not zerro
 
+#if !FAST_MODE_WRITE
 	rcall 	put_ch
 	;; fall through to command loop
+#endif
 
 	;; command loop
-command_loop:	
+command_loop:
 	rcall 	get_ch
 
 ;; 'Z' command
@@ -215,6 +219,10 @@ not_spmcr:
 	rcall		put_xbyte
 	ldi		r16, (SUPPORT_EEPROM << 0) | (FULL_ECHO_MODE << 1) | (BINARY_MODE << 2) | (FAST_MODE_READ << 3) | (FAST_MODE_WRITE << 4)
 	rcall		put_xbyte						;; flags
+#if FAST_MODE_WRITE
+	ldi 		r16, 13			; the symbol of the loader response, is sent after each executed command
+	rcall 	put_ch
+#endif	
 	rjmp		put_ok_and_continue
 not_query_parms:
 

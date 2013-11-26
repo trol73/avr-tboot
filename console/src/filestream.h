@@ -27,9 +27,9 @@ public:
 		EAppendRead				= 5  // open a file for reading and appending. if file not exist, it will be created
 	};
 	
-	FileStream() { iOpened = false; iError = false; };
+	FileStream() { iOpened = false; iError = false; iFile = NULL; };
 	FileStream(const char *fileName, OpenMode mode) { Open(fileName, mode); };
-	~FileStream() { Close(); };
+	virtual ~FileStream() { Close(); };
 
 	bool Open(const char *fileName, OpenMode mode);
 
@@ -77,6 +77,7 @@ protected:
 };
 
 
+bool IsDirectoryExists(const char *name);
 
 
 #endif // _FILESTREAM_H_

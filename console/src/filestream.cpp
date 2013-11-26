@@ -14,6 +14,14 @@
 #include <cstring>
 #include <ctime>
 
+#ifdef WIN32
+	#include <io.h>
+#else
+	#include <unistd.h>
+#endif
+
+#include <sys/types.h>
+#include <sys/stat.h>
 
 
 unsigned int FileStream::ReadByte() {
@@ -60,11 +68,11 @@ unsigned int FileStream::ReadLine(char *str, unsigned int maxLength) {
 	bool firstChar = true;
 	while ( len < maxLength && !Eof() ) {
 		char c = ReadByte();
-		if ( c == 0x0d ) {
+		if ( c == 0x0d || c == 0x0a ) {
 			str[len] = 0;
 			return len;
-		} else if ( c == 0x0a && firstChar ) {
-			firstChar = false;
+//		} else if ( c == 0x0a && firstChar ) {
+//			firstChar = false;
 		} else
 			str[len++] = c;
 	}
@@ -182,4 +190,21 @@ unsigned int FileStream::Write(void *buf, unsigned int size) {
 	return (unsigned int)fwrite(buf, 1, size, iFile);
 }
 
+bool IsDirectoryExists(const char *absolutePath) {
+#ifdef WIN32
+	if ( _access( absolutePath, 0 ) == 0 ) {
+		struct stat status;
+		stat( absolutePath, &status );
+		return (status.st_mode & S_IFDIR) != 0;
+	}
+	return false;
+#else
+	if ( access( absolutePath, 0 ) == 0 ) {
+		struct stat status;
+		stat( absolutePath, &status );
+		return (status.st_mode & S_IFDIR) != 0;
+	}
+	return false;
+#endif
+}
 

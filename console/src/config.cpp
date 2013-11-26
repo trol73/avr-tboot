@@ -256,7 +256,7 @@ bool Config::InitBoolParam(bool &val, const std::string &str) {
 	} else if ( str == "false" ) {
 		val = false;
 	} else {
-		printf("Invalid boolean param: %s in line %i\n", str.c_str(), line);
+		printf("Invalid boolean param: '%s' in line %i\n", str.c_str(), line);
 		return false;
 	}
 	return true;
