@@ -25,6 +25,7 @@
 #define FAST_MODE_WRITE             0
 #define SUPPORT_EEPROM              0
 
+#define NO_CONFIRM_MODE             0
 
 
 
@@ -119,16 +120,22 @@ reset_stack_and_putch:
 	rcall 	put_ch
 	
 put_ok_and_continue:
+#if !NO_CONFIRM_MODE	
 	ldi 		r16, 13			; the symbol of the loader response, is sent after each executed command
-
+#endif
 	;; wait for completion before sending ack byte
 putch_and_continue:
-	in 		r17, SPMCR
-	andi 		r17, (1<<SPMEN)
-	brne 		putch_and_continue		; jump if the result is not zerro
-
+	;; !!!!!!!!!!!!!!!!! use call here !!!!!!!!!!!!
+;;	in 		r17, SPMCR
+;;	andi 		r17, (1<<SPMEN)
+;;	brne 		putch_and_continue		; jump if the result is not zerro
+;	rcall		wait_spm_busy
+#if !NO_CONFIRM_MODE
 	rcall 	put_ch
+#endif
 	;; fall through to command loop
+	
+	rcall		wait_spm_busy
 
 
 	;; command loop
@@ -178,28 +185,57 @@ not_lpm:
 ;; 'W' command
 	cpi		r16, 'W'						; write program memory
 	brne		not_wpm
+	
+#if FAST_MODE_WRITE
+	ldi		r16, 0x03
+	rcall		erase_and_mark_page
+	mov		r19, ZH
+	mov		r20, ZL
+#endif
 	rcall		get_xbyte					; loading words count
 	mov		r17, r16
 	ldi		r18, (1<<SPMEN)
 2:	rcall		get_r0r1
 	out		SPMCR, r18					; write word to the Page Buffer
 	spm										; [R1:R0] -> RAM[Z]
+
 	adiw		ZL, 2							; Z += 2
 	subi		r17, 1						; words counter decrement
 	brne		2b								; jump to label '2' if [R17] != 0
+	
+;	rcall		wait_spm_busy
+#if FAST_MODE_WRITE
+	mov		ZH, r19
+	mov		ZL, r20
+	rcall		wait_spm_busy
+	ldi		r16, 0x05
+	rcall		erase_and_mark_page
+#endif
+
 	rjmp		put_ok_and_continue
 
 not_wpm:
+#if !FAST_MODE_WRITE	
 ;; 'P' command
 	cpi		r16, 'P'						; load SPM control register
 	brne		not_spmcr
 ;;	rcall		get_r0r1
+
 	rcall		get_xbyte
+#else
+erase_and_mark_page:
+#endif	
 	out		SPMCR, r16
 	spm
+	rcall		wait_spm_busy
+
 	ldi		r16, 0x11
 	out		SPMCR, r16
 	spm
+#if FAST_MODE_WRITE
+	rcall		wait_spm_busy
+	ret
+#endif
 	rjmp		put_ok_and_continue
 not_spmcr:
 
@@ -214,8 +250,12 @@ not_spmcr:
 	rcall		put_xbyte
 	ldi		r16, lo8(bootloader_start)	;; loader offset low
 	rcall		put_xbyte
-	ldi		r16, (SUPPORT_EEPROM << 0) | (FULL_ECHO_MODE << 1) | (BINARY_MODE << 2) | (FAST_MODE_READ << 3) | (FAST_MODE_WRITE << 4)
+	ldi		r16, (SUPPORT_EEPROM << 0) | (FULL_ECHO_MODE << 1) | (BINARY_MODE << 2) | (FAST_MODE_READ << 3) | (FAST_MODE_WRITE << 4) | (NO_CONFIRM_MODE << 5)
 	rcall		put_xbyte						;; flags
+#if NO_CONFIRM_MODE
+	ldi 		r16, 13
+	rcall		put_ch
+#endif
 	rjmp		put_ok_and_continue
 not_query_parms:
 
@@ -235,6 +275,14 @@ err:
 	set
 	rjmp		reset_stack_and_putch
 
+
+;; !!!!!!!!!!!!! ADDED CODE !!!!!!!!!!!!
+wait_spm_busy:
+	in 		r17, SPMCR
+	andi 		r17, (1<<SPMEN)
+	brne 		wait_spm_busy			; jump if the result is not zerro
+	ret
+	;; !!!!!!!!!!!!! ADDED CODE !!!!!!!!!!!!
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;;; UART utility
