@@ -9,10 +9,12 @@
  * published by the Free Software Foundation.
  */
 
-#include <cstdio>
-#include <glog/logging.h>
-
 #include "device.h"
+
+#include <cstdio>
+#include <iostream>
+
+#include "glog/logging.h"
 
 #ifdef WIN32
 	#include <windows.h>
@@ -72,10 +74,13 @@ bool Device::Open(const char *comName, int baudRate) {
 	return true;
 }
 
+Timer tmrErase, tmrWrite, tmrFinish;
 
 void Device::Close() {
     com->Flush();
     com->Close();
+    printf("TIME %.2f  %.2f  %.2f\n", tmrErase.GetTimeSec(), tmrWrite.GetTimeSec(), tmrFinish.GetTimeSec());
+    // TIME 105.20  105.94  70.67
 }
 
 // Set the Z-register
@@ -92,18 +97,17 @@ bool Device::CommandZ(uint z) {
 	}
 	sendHexWord(z);
 
-	if ( isConfirmMode() ) {
-		unsigned char c = readByte();
-		if ( !com->IsOk() ) {
-			LOG(ERROR) << "COMMAND Z timeout";
-			valueOfZ = -1;
-			return false;
-		}
-		if ( c != 0x0D ) {
-			LOG(ERROR) << "COMMAND Z invalid response - " << ByteToHex(c) << ' ' << '[' << c << ']';
-			valueOfZ = -1;
-			return false;
-		}
+
+	unsigned char c = readByte();
+	if ( !com->IsOk() ) {
+		LOG(ERROR) << "COMMAND Z timeout";
+		valueOfZ = -1;
+		return false;
+	}
+	if ( c != 0x0D ) {
+		LOG(ERROR) << "COMMAND Z invalid response - " << ByteToHex(c) << ' ' << '[' << c << ']';
+		valueOfZ = -1;
+		return false;
 	}
 
 	valueOfZ = z;
@@ -143,17 +147,17 @@ bool Device::CommandR(unsigned char *data, int size, uint offset) {
 		}
 		ui->ProgressRead(100*(offset+i)/fullDataSize, timerRead->GetTime());
 	}
-	if ( isConfirmMode() ) {
-		uint resp = readByte();
-		if ( !com->IsOk() ) {
-			LOG(ERROR) << "COMMAND R timeout";
-			return false;
-		}
-		if ( resp != 0x0d ) {
-			LOG(ERROR) << "COMMAND R: invalid response " << CharToStrForLog(resp);
-			return false;
-		}
+
+	uint resp = readByte();
+	if ( !com->IsOk() ) {
+		LOG(ERROR) << "COMMAND R timeout";
+		return false;
 	}
+	if ( resp != 0x0d ) {
+		LOG(ERROR) << "COMMAND R: invalid response " << CharToStrForLog(resp);
+		return false;
+	}
+
 	return true;
 }
 
@@ -190,16 +194,15 @@ bool Device::CommandW(unsigned char *data, int size) {
 		}
 	}
 
-	if ( isConfirmMode() ) {
-		uint resp = readByte();
-		if ( !com->IsOk() ) {
-			LOG(ERROR) << "COMMAND W timeout";
-			return false;
-		}
-		if ( resp != 0x0d ) {
-			LOG(ERROR) << "COMMAND W: invalid response " << CharToStrForLog(resp);
-			return false;
-		}
+
+	uint resp = readByte();
+	if ( !com->IsOk() ) {
+		LOG(ERROR) << "COMMAND W timeout";
+		return false;
+	}
+	if ( resp != 0x0d ) {
+		LOG(ERROR) << "COMMAND W: invalid response " << CharToStrForLog(resp);
+		return false;
 	}
 
 	return true;
@@ -213,27 +216,26 @@ bool Device::CommandP(int r0r1, int spmcr) {
 		LOG(ERROR) << "write byte error - P";
 		return false;
 	}
-	if ( !sendHexWord(r0r1) ) {
-		LOG(ERROR) << "COMMAND P: write R0R1 error";
-		return false;
-	}
+//	if ( !sendHexWord(r0r1) ) {
+//		LOG(ERROR) << "COMMAND P: write R0R1 error";
+//		return false;
+//	}
 	if ( !sendHexByte(spmcr) ) {
 		LOG(ERROR) << "COMMAND P: write SPMCR error";
 		return false;
 	}
 
 
-	if ( isConfirmMode() ) {
-		uint resp = readByte();
-		if ( !com->IsOk() ) {
-			LOG(ERROR) << "COMMAND P timeout";
-			return false;
-		}
-		if ( resp != 0x0d ) {
-			LOG(ERROR) << "COMMAND P: invalid response " << CharToStrForLog(resp);
-			return false;
-		}
+	uint resp = readByte();
+	if ( !com->IsOk() ) {
+		LOG(ERROR) << "COMMAND P timeout";
+		return false;
 	}
+	if ( resp != 0x0d ) {
+		LOG(ERROR) << "COMMAND P: invalid response " << CharToStrForLog(resp);
+		return false;
+	}
+
 	return true;
 }
 
@@ -309,22 +311,20 @@ bool Device::ReadAll(unsigned char *data, int size) {
 }
 
 
-// Writes a one memory page
-bool Device::WritePage(int offset, unsigned char *data, int size) {
-	VLOG(VLOG_LOADER_PAGES) << "write page #" << WordToHex(offset) << " size " << size;
-
+// Erases a memory page and mark it available
+bool Device::erasePage(int offset) {
 	if ( !CommandZ(offset) ) {
 		LOG(ERROR) << "WRITE PAGE - set offset error";
 		return false;
 	}
 	if ( !noWrite ) {
 		// Erase a page
-		if ( !CommandP(0x0000, 0x03) ) {
+		if ( !CommandP(0x0000, 0x03) ) {	// PGERS & SPMEN
 			LOG(ERROR) << "WRITE PAGE - ERASE ERROR";
 			return false;
 		}
 		// Mark this page section as available
-		if ( !CommandP(0x0000, 0x11) ) {
+		if ( !CommandP(0x0000, 0x11) ) {	// RWWSRE & SPMEN
 			LOG(ERROR) << "WRITE PAGE - MARK ERROR";
 			return false;
 		}
@@ -336,34 +336,51 @@ bool Device::WritePage(int offset, unsigned char *data, int size) {
 //		return false;
 //	}
 
+	return true;
+}
+
+// Writes a one memory page
+bool Device::WritePage(int offset, unsigned char *data, int size) {
+	VLOG(VLOG_LOADER_PAGES) << "write page #" << WordToHex(offset) << " size " << size;
+
+tmrErase.Start();
+
+	erasePage(offset);
+tmrErase.Stop();
+
+tmrWrite.Start();
 	// Send a data to the page buffer
 	if ( !CommandW(data, size) ) {
 		LOG(ERROR) << "WRITE PAGE - WRITE BLOCK ERROR";
 		return false;
 	}
 
-	if ( !CommandZ(offset) ) {
-		LOG(ERROR) << "WRITE PAGE - SET OFFSET-2 ERROR";
-		return false;
-	}
-
+tmrWrite.Stop();
 	// [???] may be it's a some delay? [???] !!!
 //	if ( GetLoaderOffset() <= 0 ) {
 //		LOG(ERROR) << "WRITE PAGE - GET LOADER OFFSET-2 ERROR";
 //		return false;
 //	}
 
+tmrFinish.Start();
+	if ( !CommandZ(offset) ) {
+		LOG(ERROR) << "WRITE PAGE - SET OFFSET-2 ERROR";
+		return false;
+	}
 	if ( !noWrite ) {
-		// Write a page
-		if ( !CommandP(0x0000, 0x05) ) {
+		// Write the Page Buffer to Flash memory
+// Z used, r0r1 doesn't used
+		if ( !CommandP(0x0000, 0x05) ) {		// PGWRT & SPMEN
 			LOG(ERROR) << "WRITE PAGE - WRITE COMMAND ERROR";
 			return false;
 		}
 		// Mark this page section as available
-		if ( !CommandP(0x0000, 0x11) ) {
+// r0r1 && Z ignored
+		if ( !CommandP(0x0000, 0x11) ) {		// RWWSRE & SPMEN
 			LOG(ERROR) << "WRITE PAGE - MARK AVAILABLE ERROR";
 			return false;
 		}
+tmrFinish.Stop();
 	}
 
 	// [???] may be it's a some delay? [???]
@@ -977,7 +994,3 @@ bool Device::SendCommandStr(std::string &cmd) {
 	return true;
 }
 
-
-bool Device::isConfirmMode() {
-	return (bootloaderFlags & FLAG_FAST_MODE_WRITE) == 0;
-}

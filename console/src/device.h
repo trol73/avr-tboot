@@ -17,6 +17,7 @@ class UI;
 class RS232;
 //class Timer;
 
+#include <string>
 #include <sys/types.h>
 
 #include "timer.h"
@@ -114,6 +115,10 @@ private:
 	// Reads the R0:R1 pair, then one byte into SPMCR and executes the SPM instruction
 	bool CommandP(int r0r1, int spmcr);
 
+	// Erases a memory page and mark it available
+	bool erasePage(int offset);
+
+
 	// write binary byte to UART
 	bool writeByte(unsigned char val);
 
@@ -143,8 +148,6 @@ private:
 
 	// Returns the max size for reading block (0xffff if the fast-mode is enabled or 0xff otherwise)
 	uint getMaxReadBlockSize();
-
-	bool isConfirmMode();
 
 };
 
