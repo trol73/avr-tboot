@@ -34,7 +34,7 @@
 #define FLAG_BINARY_MODE			(1 << 2)
 #define FLAG_FAST_MODE_READ			(1 << 3)
 #define FLAG_FAST_MODE_WRITE		(1 << 4)
-
+#define FLAG_NO_CONFIRM_MODE		(1 << 5)
 
 Device::Device(UI *ui) {
 	this->ui = ui;
@@ -81,6 +81,9 @@ void Device::Close() {
     com->Close();
     printf("TIME %.2f  %.2f  %.2f\n", tmrErase.GetTimeSec(), tmrWrite.GetTimeSec(), tmrFinish.GetTimeSec());
     // TIME 105.20  105.94  70.67
+    // TIME 108.38  71.71  107.78
+    //  71.61  72.24  71.99
+    // TIME 71.95  71.91  71.96
 }
 
 // Set the Z-register
@@ -97,17 +100,18 @@ bool Device::CommandZ(uint z) {
 	}
 	sendHexWord(z);
 
-
-	unsigned char c = readByte();
-	if ( !com->IsOk() ) {
-		LOG(ERROR) << "COMMAND Z timeout";
-		valueOfZ = -1;
-		return false;
-	}
-	if ( c != 0x0D ) {
-		LOG(ERROR) << "COMMAND Z invalid response - " << ByteToHex(c) << ' ' << '[' << c << ']';
-		valueOfZ = -1;
-		return false;
+	if ((bootloaderFlags & FLAG_NO_CONFIRM_MODE) == 0) {
+		unsigned char c = readByte();
+		if ( !com->IsOk() ) {
+			LOG(ERROR) << "COMMAND Z timeout";
+			valueOfZ = -1;
+			return false;
+		}
+		if ( c != 0x0D ) {
+			LOG(ERROR) << "COMMAND Z invalid response - " << ByteToHex(c) << ' ' << '[' << c << ']';
+			valueOfZ = -1;
+			return false;
+		}
 	}
 
 	valueOfZ = z;
@@ -148,16 +152,17 @@ bool Device::CommandR(unsigned char *data, int size, uint offset) {
 		ui->ProgressRead(100*(offset+i)/fullDataSize, timerRead->GetTime());
 	}
 
-	uint resp = readByte();
-	if ( !com->IsOk() ) {
-		LOG(ERROR) << "COMMAND R timeout";
-		return false;
+	if ((bootloaderFlags & FLAG_NO_CONFIRM_MODE) == 0) {
+		uint resp = readByte();
+		if ( !com->IsOk() ) {
+			LOG(ERROR) << "COMMAND R timeout";
+			return false;
+		}
+		if ( resp != 0x0d ) {
+			LOG(ERROR) << "COMMAND R: invalid response " << CharToStrForLog(resp);
+			return false;
+		}
 	}
-	if ( resp != 0x0d ) {
-		LOG(ERROR) << "COMMAND R: invalid response " << CharToStrForLog(resp);
-		return false;
-	}
-
 	return true;
 }
 
@@ -195,15 +200,18 @@ bool Device::CommandW(unsigned char *data, int size) {
 	}
 
 
-	uint resp = readByte();
-	if ( !com->IsOk() ) {
-		LOG(ERROR) << "COMMAND W timeout";
-		return false;
+	if ((bootloaderFlags & FLAG_NO_CONFIRM_MODE) == 0) {
+		uint resp = readByte();
+		if ( !com->IsOk() ) {
+			LOG(ERROR) << "COMMAND W timeout";
+			return false;
+		}
+		if ( resp != 0x0d ) {
+			LOG(ERROR) << "COMMAND W: invalid response " << CharToStrForLog(resp);
+			return false;
+		}
 	}
-	if ( resp != 0x0d ) {
-		LOG(ERROR) << "COMMAND W: invalid response " << CharToStrForLog(resp);
-		return false;
-	}
+
 
 	return true;
 }
@@ -226,16 +234,17 @@ bool Device::CommandP(int r0r1, int spmcr) {
 	}
 
 
-	uint resp = readByte();
-	if ( !com->IsOk() ) {
-		LOG(ERROR) << "COMMAND P timeout";
-		return false;
+	if ((bootloaderFlags & FLAG_NO_CONFIRM_MODE) == 0) {
+		uint resp = readByte();
+		if ( !com->IsOk() ) {
+			LOG(ERROR) << "COMMAND P timeout";
+			return false;
+		}
+		if ( resp != 0x0d ) {
+			LOG(ERROR) << "COMMAND P: invalid response " << CharToStrForLog(resp);
+			return false;
+		}
 	}
-	if ( resp != 0x0d ) {
-		LOG(ERROR) << "COMMAND P: invalid response " << CharToStrForLog(resp);
-		return false;
-	}
-
 	return true;
 }
 
@@ -313,9 +322,13 @@ bool Device::ReadAll(unsigned char *data, int size) {
 
 // Erases a memory page and mark it available
 bool Device::erasePage(int offset) {
+
 	if ( !CommandZ(offset) ) {
 		LOG(ERROR) << "WRITE PAGE - set offset error";
 		return false;
+	}
+	if ((bootloaderFlags & FLAG_FAST_MODE_WRITE) != 0) {
+		return true;
 	}
 	if ( !noWrite ) {
 		// Erase a page
@@ -324,10 +337,10 @@ bool Device::erasePage(int offset) {
 			return false;
 		}
 		// Mark this page section as available
-		if ( !CommandP(0x0000, 0x11) ) {	// RWWSRE & SPMEN
-			LOG(ERROR) << "WRITE PAGE - MARK ERROR";
-			return false;
-		}
+//		if ( !CommandP(0x0000, 0x11) ) {	// RWWSRE & SPMEN
+//			LOG(ERROR) << "WRITE PAGE - MARK ERROR";
+//			return false;
+//		}
 	}
 
 	// [???] may be it's a some delay? [???] !!!!!
@@ -363,23 +376,27 @@ tmrWrite.Stop();
 //	}
 
 tmrFinish.Start();
-	if ( !CommandZ(offset) ) {
-		LOG(ERROR) << "WRITE PAGE - SET OFFSET-2 ERROR";
-		return false;
+	if ((bootloaderFlags & FLAG_FAST_MODE_WRITE) == 0) {
+		if ( !CommandZ(offset) ) {
+			LOG(ERROR) << "WRITE PAGE - SET OFFSET-2 ERROR";
+			return false;
+		}
 	}
 	if ( !noWrite ) {
 		// Write the Page Buffer to Flash memory
 // Z used, r0r1 doesn't used
-		if ( !CommandP(0x0000, 0x05) ) {		// PGWRT & SPMEN
-			LOG(ERROR) << "WRITE PAGE - WRITE COMMAND ERROR";
-			return false;
+		if ((bootloaderFlags & FLAG_FAST_MODE_WRITE) == 0) {
+			if ( !CommandP(0x0000, 0x05) ) {		// PGWRT & SPMEN
+				LOG(ERROR) << "WRITE PAGE - WRITE COMMAND ERROR";
+				return false;
+			}
 		}
 		// Mark this page section as available
 // r0r1 && Z ignored
-		if ( !CommandP(0x0000, 0x11) ) {		// RWWSRE & SPMEN
-			LOG(ERROR) << "WRITE PAGE - MARK AVAILABLE ERROR";
-			return false;
-		}
+//		if ( !CommandP(0x0000, 0x11) ) {		// RWWSRE & SPMEN
+//			LOG(ERROR) << "WRITE PAGE - MARK AVAILABLE ERROR";
+//			return false;
+//		}
 tmrFinish.Stop();
 	}
 
