@@ -22,7 +22,7 @@
 #define FULL_ECHO_MODE              0
 #define BINARY_MODE                 1
 #define FAST_MODE_READ              1
-#define FAST_MODE_WRITE             0
+#define FAST_MODE_WRITE             1
 #define SUPPORT_EEPROM              0
 
 
