@@ -22,7 +22,7 @@
 #define FULL_ECHO_MODE              0
 #define BINARY_MODE                 1
 #define FAST_MODE_READ              1
-#define FAST_MODE_WRITE             0
+#define FAST_MODE_WRITE             1
 #define SUPPORT_EEPROM              0
 
 #define NO_CONFIRM_MODE             0
@@ -187,10 +187,10 @@ not_lpm:
 	brne		not_wpm
 	
 #if FAST_MODE_WRITE
-	ldi		r16, 0x03
-	rcall		erase_and_mark_page
 	mov		r19, ZH
 	mov		r20, ZL
+;;	ldi		r16, 0x03
+;;	rcall		erase_and_mark_page
 #endif
 	rcall		get_xbyte					; loading words count
 	mov		r17, r16
@@ -215,16 +215,12 @@ not_lpm:
 	rjmp		put_ok_and_continue
 
 not_wpm:
-#if !FAST_MODE_WRITE	
+;/#if !FAST_MODE_WRITE	
 ;; 'P' command
 	cpi		r16, 'P'						; load SPM control register
 	brne		not_spmcr
-;;	rcall		get_r0r1
 
 	rcall		get_xbyte
-#else
-erase_and_mark_page:
-#endif	
 	out		SPMCR, r16
 	spm
 	rcall		wait_spm_busy
@@ -232,12 +228,10 @@ erase_and_mark_page:
 	ldi		r16, 0x11
 	out		SPMCR, r16
 	spm
-#if FAST_MODE_WRITE
-	rcall		wait_spm_busy
-	ret
-#endif
+
 	rjmp		put_ok_and_continue
 not_spmcr:
+;/#endif	
 
 ;; 'Q' command
 	cpi		r16, 'Q'						; query parameters
@@ -275,6 +269,20 @@ err:
 	set
 	rjmp		reset_stack_and_putch
 
+
+#if FAST_MODE_WRITE
+erase_and_mark_page:
+	out		SPMCR, r16
+	spm
+	rcall		wait_spm_busy
+
+	ldi		r16, 0x11
+	out		SPMCR, r16
+	spm
+	rcall		wait_spm_busy
+	
+	ret
+#endif	
 
 ;; !!!!!!!!!!!!! ADDED CODE !!!!!!!!!!!!
 wait_spm_busy:
