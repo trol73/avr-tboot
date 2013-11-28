@@ -93,11 +93,11 @@ bool Config::Load() {
 					if ( !InitStrParam(device, value) )
 						return false;
 				} else if ( name == "readTimeout" ) {
-					if ( !InitUIntParam(readTimeout, value) ) {
+					if ( !InitULongParam(readTimeout, value) ) {
 						return false;
 					}
 				} else if ( name == "writeTimeout" ) {
-					if ( !InitUIntParam(writeTimeout, value) ) {
+					if ( !InitULongParam(writeTimeout, value) ) {
 						return false;
 					}
 				} else if ( name == "loggingLevel" ) {
@@ -278,6 +278,21 @@ bool Config::InitUIntParam(unsigned int &val, const std::string &str) {
 		return false;
 	}
 	int i = StrToInt(str);
+	if ( i < 0 ) {
+		printf("Negative value: %s in line %i\n", str.c_str(), line);
+		return false;
+	}
+	val = i;
+	return true;
+}
+
+
+bool Config::InitULongParam(unsigned long &val, const std::string &str) {
+	if ( !VerifyLong(str) ) {
+		printf("Invalid unsigned long param: %s in line %i\n", str.c_str(), line);
+		return false;
+	}
+	int i = StrToLong(str);
 	if ( i < 0 ) {
 		printf("Negative value: %s in line %i\n", str.c_str(), line);
 		return false;

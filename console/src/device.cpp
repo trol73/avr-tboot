@@ -84,6 +84,7 @@ void Device::Close() {
     // TIME 108.38  71.71  107.78
     //  71.61  72.24  71.99
     // TIME 71.95  71.91  71.96
+    // TIME 71.68  72.15  0.00
 }
 
 // Set the Z-register
@@ -183,7 +184,7 @@ bool Device::CommandW(unsigned char *data, int size) {
 		LOG(ERROR) << "COMMAND W: write byte error - W";
 		return false;
 	}
-	VLOG(VLOG_LOADER_DETAILS) << "send size/2" << (size/2);
+	VLOG(VLOG_LOADER_DETAILS) << "send size/2  " << (size/2);
 	if ( !sendHexByte(size/2) ) {
 		LOG(ERROR) << "COMMAND W: write word error - size/2";
 		return false;
@@ -197,6 +198,7 @@ bool Device::CommandW(unsigned char *data, int size) {
 		if ( valueOfZ >= 0 ) {
 			valueOfZ += 2;
 		}
+LOG(INFO) << "write " << i << " byte from " << size;
 	}
 
 
@@ -328,7 +330,7 @@ bool Device::erasePage(int offset) {
 		return false;
 	}
 	if ((bootloaderFlags & FLAG_FAST_MODE_WRITE) != 0) {
-		return true;
+//		return true;
 	}
 	if ( !noWrite ) {
 		// Erase a page
@@ -958,7 +960,7 @@ uint Device::getMaxReadBlockSize() {
 }
 
 
-void Device::SetTimeouts(uint writeTimeout, uint readTimeout) {
+void Device::SetTimeouts(unsigned long writeTimeout, unsigned long readTimeout) {
 	com->SetWriteTimeOut(writeTimeout);
 	com->SetReadTimeOut(readTimeout);
 }

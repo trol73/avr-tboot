@@ -70,6 +70,7 @@ int main(int argc, char* argv[]) {
 	if ( !cfg->SelectDevice(cfg->device) ) {
 		return 1;
 	}
+
 	dev->SetTimeouts(cfg->writeTimeout, cfg->readTimeout);
 	dev->SetStartCommand(cfg->startCommand);
 

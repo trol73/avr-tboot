@@ -54,8 +54,8 @@ public:
 
 	std::vector<TOperation*> operations;
 
-	uint writeTimeout;				// UART write operation timeout, microseconds
-	uint readTimeout;				// UART read operation timeout, microseconds
+	unsigned long writeTimeout;				// UART write operation timeout, microseconds
+	unsigned long readTimeout;				// UART read operation timeout, microseconds
 	std::string startCommand;		// send this string to UART before start
 	std::string finishCommand;		// send this string to UART after finish
 	int loggingLevel;				// for glog::V
@@ -76,6 +76,7 @@ private:
 	bool InitBoolParam(bool &val, const std::string &str);
 	bool InitIntParam(int &val, const std::string &str);
 	bool InitUIntParam(unsigned int &val, const std::string &str);
+	bool InitULongParam(unsigned long &val, const std::string &str);
 	bool InitStrParam(std::string &val, const std::string &str);
 };
 

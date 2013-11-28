@@ -300,7 +300,7 @@ void RS232::WriteByte(uint val) {
 	WriteByte(val, writeTimeout);
 }
 
-void RS232::WriteByte(uint val, uint timeout) {
+void RS232::WriteByte(uint val, unsigned long timeout) {
 	if ( timeout == 0 ) {
 		iError = Write(&val, 1) != 1;
 		return;
@@ -325,7 +325,7 @@ uint RS232::ReadByte() {
 	return ReadByte(readTimeout);
 }
 
-uint RS232::ReadByte(uint timeout) {
+uint RS232::ReadByte(unsigned long timeout) {
 	uint result = 0;
 	if ( timeout == 0 ) {
 		iError = Read(&result, 1) != 1;
@@ -349,6 +349,7 @@ uint RS232::ReadByte(uint timeout) {
 
 
 void RS232::updateTimeout() {
+	/*
 #ifdef WIN32
 	readTimeout = 0;
 #else
@@ -357,4 +358,5 @@ void RS232::updateTimeout() {
 	if ( baudrate <= 600 ) {
 		readTimeout *= 5;
 	}
+	*/
 }

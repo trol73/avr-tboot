@@ -59,7 +59,7 @@ public:
 
 	void SetPageSize(uint size) { pageSize = size; }
 
-	void SetTimeouts(uint writeTimeout, uint readTimeout);
+	void SetTimeouts(unsigned long writeTimeout, unsigned long readTimeout);
 
 	// Disable writing to chip memory (debug mode)
 	void DisableWriting(bool noWrite) { this->noWrite = noWrite; }

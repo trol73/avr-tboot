@@ -45,6 +45,13 @@ bool VerifyInt(const std::string &str);
 // Convert the string to integer
 int StrToInt(const std::string &str);
 
+// Return true, if the string is a valid representation of long
+bool VerifyLong(const std::string &str);
+
+// Convert the string to long
+long StrToLong(const std::string &str);
+
+
 // Convert integer to string
 std::string IntToStr(int v);
 

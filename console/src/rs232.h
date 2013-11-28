@@ -53,22 +53,22 @@ public:
 	bool SetRTS(bool val);
 	
 	void WriteByte(uint val);
-	void WriteByte(uint val, uint timeout);
+	void WriteByte(uint val, unsigned long timeout);
 
 	uint ReadByte();
-	uint ReadByte(uint timeout);
+	uint ReadByte(unsigned long timeout);
 	
 	bool IsOk() { return !iError; }
 	void ClearError() { iError = false; }
 	
 	// Set read timeout (microseconds)
-	void SetReadTimeOut(int us) { readTimeout = us; };
+	void SetReadTimeOut(unsigned long us) { readTimeout = us; };
 	
 	// Get read timeout (microseconds)
 	int GetReadTimeOut() { return readTimeout; };
 	
 	// Set read timeout (microseconds)
-	void SetWriteTimeOut(int us) { writeTimeout = us; };
+	void SetWriteTimeOut(unsigned long us) { writeTimeout = us; };
 
 	// Get read timeout (microseconds)
 	int GetWriteTimeOut() { return writeTimeout; };
@@ -80,8 +80,8 @@ public:
 
 private:
 	bool iError;
-	int readTimeout;			// read operation timeout, us
-	int writeTimeout;			// write operation timeout, us
+	unsigned long readTimeout;			// read operation timeout, us
+	unsigned long writeTimeout;			// write operation timeout, us
 	uint baudrate;
 #ifdef WIN32
 	HANDLE handle;				// port file descriptor

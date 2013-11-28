@@ -98,7 +98,7 @@ int WordPosition(const unsigned int n, const std::string &str, const std::string
 		// skiping delims in end of the string
 		while ( (i <= len) && (wordDelims.find(str[i]) != string::npos) )
 			i++;
-		// it's beginтing of a new word
+		// it's begin��ing of a new word
 		if ( i < len )
 			count++;
 		// it's a end of current word
@@ -140,9 +140,26 @@ bool VerifyInt(const std::string &str) {
 }
 
 
+// Return true, if the string is a valid representation of long
+bool VerifyLong(const std::string &str) {
+	if ( str.length() == 0 ) {
+		return false;
+	}
+	char *stopstring;
+	strtol(str.c_str(), &stopstring, 10);
+	return ( stopstring[0] == 0 );
+}
+
+
 // Convert string to integer
 int StrToInt(const std::string &str) {
 	return atoi(str.c_str());
+}
+
+
+// Convert string to long
+long StrToLong(const std::string &str) {
+	return atol(str.c_str());
 }
 
 
