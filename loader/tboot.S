@@ -129,13 +129,13 @@ putch_and_continue:
 ;;	in 		r17, SPMCR
 ;;	andi 		r17, (1<<SPMEN)
 ;;	brne 		putch_and_continue		; jump if the result is not zerro
-;	rcall		wait_spm_busy
+	rcall		wait_spm_busy
 #if !NO_CONFIRM_MODE
 	rcall 	put_ch
 #endif
 	;; fall through to command loop
 	
-	rcall		wait_spm_busy
+;	rcall		wait_spm_busy
 
 
 	;; command loop
@@ -187,10 +187,22 @@ not_lpm:
 	brne		not_wpm
 	
 #if FAST_MODE_WRITE
+rcall 	put_ch	
+	; get Z
+	rcall		get_xbyte
+	mov 		ZH, r16
+	rcall 	get_xbyte
+	mov 		ZL, r16
+
+
+	ldi		r16, 0x03
+	rcall		erase_and_mark_page
+
 	mov		r19, ZH
 	mov		r20, ZL
-;;	ldi		r16, 0x03
-;;	rcall		erase_and_mark_page
+
+
+
 #endif
 	rcall		get_xbyte					; loading words count
 	mov		r17, r16
@@ -228,7 +240,7 @@ not_wpm:
 	ldi		r16, 0x11
 	out		SPMCR, r16
 	spm
-
+;rcall		wait_spm_busy	; !!!!
 	rjmp		put_ok_and_continue
 not_spmcr:
 ;/#endif	
@@ -279,10 +291,10 @@ erase_and_mark_page:
 	ldi		r16, 0x11
 	out		SPMCR, r16
 	spm
-	rcall		wait_spm_busy
+;	rcall		wait_spm_busy
 	
-	ret
-#endif	
+;	ret
+#endif
 
 ;; !!!!!!!!!!!!! ADDED CODE !!!!!!!!!!!!
 wait_spm_busy:
