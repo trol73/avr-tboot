@@ -96,6 +96,7 @@ int main(int argc, char* argv[]) {
 		}
 		if ( attempt == 0 ) {
 			ui->Error("bootloader not found");
+			dev->Close();
 			return 4;
 		}
 	}
@@ -124,9 +125,11 @@ int main(int argc, char* argv[]) {
 				} else if ( op->target == 'e' ) {
 					ui->Info("reading EEPROM input file \"%s\"", op->filename.c_str());
 					ui->Error("EEPROM not supported in this version");
+					dev->Close();
 					return 10;
 				}
 				if ( !DataFile::SaveFile(op->filename, data, cfg->device_rom_size) )  {
+					dev->Close();
 					return 5;
 				}
 				delete[] data;
@@ -143,6 +146,7 @@ int main(int argc, char* argv[]) {
 				ui->Info("reading input file \"%s\"\n", op->filename.c_str());
 
 				if ( !dataFile.Load(op->filename) )  {
+					dev->Close();
 					return 5;
 				}
 				if ( op->target == 'f' ) {
@@ -151,9 +155,16 @@ int main(int argc, char* argv[]) {
 						ui->Info("smart-mode enabled");
 					}
 					// chip flash size verification
-					if ( dataFile.size > dev->GetLoaderOffset() ) {
+					int loaderOffset = dev->GetLoaderOffset();
+					if (loaderOffset < 0) {
+						ui->Error("error! can't get bootloader offset");
+						dev->Close();
+						return 6;
+					}
+					if ( dataFile.size > loaderOffset ) {
 						// TODO !!! more detail info here
-						ui->Error("error! data too large: available %i bytes", dev->GetLoaderOffset());
+						ui->Error("error! data too large: available %i bytes", loaderOffset);
+						dev->Close();
 						return 6;
 					}
 					// preparing a data array
@@ -166,6 +177,7 @@ int main(int argc, char* argv[]) {
 					if ( !writeResult ) {
 						printf("\n");
 						ui->Error("chip flash write error");
+						dev->Close();
 						return 4;
 					}
 					if ( cfg->smart ) {
@@ -173,6 +185,7 @@ int main(int argc, char* argv[]) {
 					}
 				} else if ( op->target == 'e' ) {
 					ui->Error("EEPROM doesn't supported for this version");
+					dev->Close();
 					return 10;
 				}
 			}
@@ -188,6 +201,7 @@ int main(int argc, char* argv[]) {
 				DataFile dataFile;
 
 				if ( !dataFile.Load(op->filename) ) {
+					dev->Close();
 					return 5;
 				}
 				unsigned char *readed = NULL;
@@ -201,10 +215,12 @@ int main(int argc, char* argv[]) {
 					if ( !dev->ReadAll(readed, cfg->device_rom_size) ) {
 						delete[] readed;
 						ui->Error("chip flash reading error");
+						dev->Close();
 						return 4;
 					}
 				} else if ( op->target == 'e' ) {
 					ui->Error("EEPROM doesn't supported for this version");
+					dev->Close();
 					return 10;
 				}
 				if ( dataFile.size > readedSize ) {
@@ -233,6 +249,7 @@ int main(int argc, char* argv[]) {
 
 	if ( !dev->SendCommandStr(cfg->finishCommand) ) {
 		LOG(ERROR) << "can't send finish command " << cfg->finishCommand;
+		dev->Close();
 		return 100;
 	}
 	

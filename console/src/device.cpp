@@ -79,7 +79,7 @@ Timer tmrErase, tmrWrite, tmrFinish;
 void Device::Close() {
     com->Flush();
     com->Close();
-    printf("TIME %.2f  %.2f  %.2f\n", tmrErase.GetTimeSec(), tmrWrite.GetTimeSec(), tmrFinish.GetTimeSec());
+//    printf("TIME %.2f  %.2f  %.2f\n", tmrErase.GetTimeSec(), tmrWrite.GetTimeSec(), tmrFinish.GetTimeSec());
     // TIME 105.20  105.94  70.67
     // TIME 108.38  71.71  107.78
     //  71.61  72.24  71.99
@@ -169,7 +169,7 @@ bool Device::CommandR(unsigned char *data, int size, uint offset) {
 
 
 // Writes a data block
-bool Device::CommandW(unsigned char *data, int size) {
+bool Device::CommandW(unsigned char *data, int size, uint offset) {
 	VLOG(VLOG_LOADER_COMMANDS) << "COMMAND W " << size;
 
 	if ( size == 0 ) {
@@ -184,6 +184,18 @@ bool Device::CommandW(unsigned char *data, int size) {
 		LOG(ERROR) << "COMMAND W: write byte error - W";
 		return false;
 	}
+
+	if (isFastWriteMode()) {
+		sendHexWord(offset);
+		uint resp = readByte();
+		//printf("RESP = %c\n", resp);
+
+	}
+
+
+
+
+
 	VLOG(VLOG_LOADER_DETAILS) << "send size/2  " << (size/2);
 	if ( !sendHexByte(size/2) ) {
 		LOG(ERROR) << "COMMAND W: write word error - size/2";
@@ -198,11 +210,14 @@ bool Device::CommandW(unsigned char *data, int size) {
 		if ( valueOfZ >= 0 ) {
 			valueOfZ += 2;
 		}
-LOG(INFO) << "write " << i << " byte from " << size;
+//LOG(INFO) << "write " << i << " byte from " << size;
 	}
 
 
 	if ((bootloaderFlags & FLAG_NO_CONFIRM_MODE) == 0) {
+if (isFastWriteMode()) {
+	return true;
+}
 		uint resp = readByte();
 		if ( !com->IsOk() ) {
 			LOG(ERROR) << "COMMAND W timeout";
@@ -220,7 +235,7 @@ LOG(INFO) << "write " << i << " byte from " << size;
 
 
 // Reads the R0:R1 pair, then one byte into SPMCR and executes the SPM instruction
-bool Device::CommandP(int r0r1, int spmcr) {
+bool Device::CommandP(int spmcr) {
 	VLOG(VLOG_LOADER_COMMANDS) << "COMMAND P " << spmcr;
 	if ( !writeByte('P') ) {
 		LOG(ERROR) << "write byte error - P";
@@ -324,17 +339,20 @@ bool Device::ReadAll(unsigned char *data, int size) {
 
 // Erases a memory page and mark it available
 bool Device::erasePage(int offset) {
+	if (isFastWriteMode()) {
+		return true;
+	}
 
 	if ( !CommandZ(offset) ) {
 		LOG(ERROR) << "WRITE PAGE - set offset error";
 		return false;
 	}
-	if ((bootloaderFlags & FLAG_FAST_MODE_WRITE) != 0) {
-//		return true;
+	if (isFastWriteMode()) {
+		return true;
 	}
 	if ( !noWrite ) {
 		// Erase a page
-		if ( !CommandP(0x0000, 0x03) ) {	// PGERS & SPMEN
+		if ( !CommandP(0x03) ) {	// PGERS & SPMEN
 			LOG(ERROR) << "WRITE PAGE - ERASE ERROR";
 			return false;
 		}
@@ -365,7 +383,7 @@ tmrErase.Stop();
 
 tmrWrite.Start();
 	// Send a data to the page buffer
-	if ( !CommandW(data, size) ) {
+	if ( !CommandW(data, size, offset) ) {
 		LOG(ERROR) << "WRITE PAGE - WRITE BLOCK ERROR";
 		return false;
 	}
@@ -378,7 +396,7 @@ tmrWrite.Stop();
 //	}
 
 tmrFinish.Start();
-	if ((bootloaderFlags & FLAG_FAST_MODE_WRITE) == 0) {
+	if ( !isFastWriteMode() ) {
 		if ( !CommandZ(offset) ) {
 			LOG(ERROR) << "WRITE PAGE - SET OFFSET-2 ERROR";
 			return false;
@@ -387,8 +405,8 @@ tmrFinish.Start();
 	if ( !noWrite ) {
 		// Write the Page Buffer to Flash memory
 // Z used, r0r1 doesn't used
-		if ((bootloaderFlags & FLAG_FAST_MODE_WRITE) == 0) {
-			if ( !CommandP(0x0000, 0x05) ) {		// PGWRT & SPMEN
+		if ( !isFastWriteMode() ) {
+			if ( !CommandP(0x05) ) {		// PGWRT & SPMEN
 				LOG(ERROR) << "WRITE PAGE - WRITE COMMAND ERROR";
 				return false;
 			}
@@ -401,12 +419,6 @@ tmrFinish.Start();
 //		}
 tmrFinish.Stop();
 	}
-
-	// [???] may be it's a some delay? [???]
-//	if ( GetLoaderOffset() <= 0 ) {
-//		LOG(ERROR) << "WRITE PAGE - get loader offset error";
-//		return false;
-//	}
 	VLOG(VLOG_LOADER_PAGES) << "write page completed";
 	return true;
 }
@@ -421,14 +433,26 @@ int Device::GetLoaderOffset() {
 		return -1;
 	}
 	int z = getHexWord();
+	if (!com->IsOk()) {
+		return -1;
+	}
 	if ( valueOfZ >= 0 && z != valueOfZ ) {
 		LOG(ERROR) << "FATAL ERROR FOR 'Q' COMAMND! Device returned Z = " << WordToHex(z) << " but cached value = " << WordToHex(valueOfZ);
 	} else if ( valueOfZ < 0 ) {
 		valueOfZ = z;
 	}
 	int result = getHexWord();
+	if (!com->IsOk()) {
+		return -1;
+	}
 	int flags = getHexByte();
+	if (!com->IsOk()) {
+		return -1;
+	}
 	uint resp = readByte();
+	if (!com->IsOk()) {
+		return -1;
+	}
 	if ( resp != 0x0D ) {
 		LOG(ERROR) << "GET LOADER OFFSET - invalid response " << CharToStrForLog(resp);
 		return -1;
@@ -585,13 +609,17 @@ bool Device::Reset() {
 		}
 	}
 	VLOG(VLOG_LOADER_DETAILS) << "skip bytes end";
-	com->ClearError();
+//	com->ClearError();
 //	com->SetReadTimeOut(comTimeout);
 
 	// detect echo mode
 	uint foundEchoCnt = 0;
 	uint foundNoEchoCnt = 0;
 	uint foundError = 0;
+	// detect echo mode
+	VLOG(VLOG_LOADER_DETAILS) << "detect echo mode begin";
+	unsigned long storedReadTimeout = com->GetReadTimeOut();
+	//com->SetReadTimeOut(storedReadTimeout/2);
 	for ( char i = 9; i >= 0; i--) {
 		com->ClearError();
 		char send = '0' + i;
@@ -634,14 +662,28 @@ bool Device::Reset() {
 			}
 		}
 	}
+	com->SetReadTimeOut(storedReadTimeout);
+	VLOG(VLOG_LOADER_DETAILS) << "detect echo mode end";
 
 	if ( !writeByte('Q') ) {
 		return false;
 	}
 	char ch1 = readByte();
+	if ( !com->IsOk() ) {
+		return false;
+	}
 	char ch2 = readByte();
+	if ( !com->IsOk() ) {
+		return false;
+	}
 	char ch3 = readByte();
+	if ( !com->IsOk() ) {
+		return false;
+	}
 	char ch4 = readByte();
+	if ( !com->IsOk() ) {
+		return false;
+	}
 	char ch5 = readByte();
 
 	if ( !com->IsOk() ) {
@@ -650,9 +692,21 @@ bool Device::Reset() {
 	if ( isHexChar(ch1) && isHexChar(ch2) && isHexChar(ch3) && isHexChar(ch4) && isHexChar(ch5) ) {
 		binaryMode = false;
 		char ch6 = readByte();
+		if ( !com->IsOk() ) {
+			return false;
+		}
 		char ch7 = readByte();
+		if ( !com->IsOk() ) {
+			return false;
+		}
 		char ch8 = readByte();
+		if ( !com->IsOk() ) {
+			return false;
+		}
 		char ch9 = readByte();
+		if ( !com->IsOk() ) {
+			return false;
+		}
 		char ch10 = readByte();
 		if ( isHexChar(ch6) && isHexChar(ch7) && isHexChar(ch8) && isHexChar(ch9) && isHexChar(ch10) ) {
 			int hiOffset = getHexByteForChars(ch5, ch6);
@@ -758,7 +812,7 @@ printf("RB  ? = %i\n", com->IsOk());
 	if ( bootloaderFlags & FLAG_FAST_MODE_READ ) {
 		ui->Info("fast read mode enabled");
 	}
-	if ( bootloaderFlags & FLAG_FAST_MODE_WRITE ) {
+	if ( isFastWriteMode() ) {
 		ui->Info("fast write mode enabled");
 	}
 	if ( bootloaderFlags & FLAG_SUPPORT_EEPROM ) {
@@ -890,12 +944,12 @@ int Device::getHexByte() {
 int Device::getHexWord() {
 	VLOG(VLOG_LOADER_DETAILS) << "Get " << (binaryMode ? "bin" : "hex") << " word";
 	int hi = getHexByte();
-	if ( hi < 0 || hi > 0xff ) {
+	if ( !com->IsOk() || hi < 0 || hi > 0xff ) {
 		VLOG(VLOG_LOADER_DETAILS) << "Get hex word - FIRST BYTE ERROR";
 		return -1;
 	}
 	int lo = getHexByte();
-	if ( lo < 0 || lo > 0xff ) {
+	if ( !com->IsOk() || lo < 0 || lo > 0xff ) {
 		VLOG(VLOG_LOADER_DETAILS) << "Get hex word - SECOND BYTE ERROR";
 		return -1;
 	}
@@ -919,6 +973,8 @@ std::string Device::CharToStrForLog(char ch) {
 		return " [\\r]";
 	} else if ( ch == '\t' ) {
 		return " [\\t]";
+	} else if (ch == 0) {
+		return "[0x00]";
 	}
 	return "";
 }
@@ -960,6 +1016,10 @@ uint Device::getMaxReadBlockSize() {
 }
 
 
+bool Device::isFastWriteMode() {
+	return bootloaderFlags & FLAG_FAST_MODE_WRITE;
+}
+
 void Device::SetTimeouts(unsigned long writeTimeout, unsigned long readTimeout) {
 	com->SetWriteTimeOut(writeTimeout);
 	com->SetReadTimeOut(readTimeout);
@@ -972,7 +1032,7 @@ bool Device::SendCommandStr(std::string &cmd) {
 	uint pos = 0;
 	while ( pos < cmd.length() ) {
 		char ch = cmd[pos++];
-		if ( ch == '\\' && pos < cmd.length()-1 ) {
+		if ( ch == '\\' && pos <= cmd.length()-1 ) {
 			switch ( cmd[pos++] ) {
 				case 'n':
 					ch = '\n';

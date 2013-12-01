@@ -17,15 +17,15 @@ class Config;
  * TODO
  *
  * 	XML config
- * 	configurable timeout
- * 	send string on start
- * 	send string on exit
  * 	number of attempts
  * 	time limit for bootloader search
  * 	write progress-bar doesn't linear
  * 	pages to progress-bar
  * 	logging
  *  creating avr-sources from tool
+ *  use exception instead off if-hell
+ *  color console
+ *  FORCE (NO)ECHO MODE DETECTION
  *
  *
 avrdude: AVR device initialized and ready to accept instructions

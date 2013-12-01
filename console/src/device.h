@@ -110,10 +110,10 @@ private:
 	bool CommandR(unsigned char *data, int size, uint offset);
 
 	// Writes a data block
-	bool CommandW(unsigned char *data, int size);
+	bool CommandW(unsigned char *data, int size, uint offset);
 	
 	// Reads the R0:R1 pair, then one byte into SPMCR and executes the SPM instruction
-	bool CommandP(int r0r1, int spmcr);
+	bool CommandP(int spmcr);
 
 	// Erases a memory page and mark it available
 	bool erasePage(int offset);
@@ -148,6 +148,8 @@ private:
 
 	// Returns the max size for reading block (0xffff if the fast-mode is enabled or 0xff otherwise)
 	uint getMaxReadBlockSize();
+
+	bool isFastWriteMode();
 
 };
 
